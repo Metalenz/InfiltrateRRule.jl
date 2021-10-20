@@ -94,4 +94,8 @@ Note that we do need the second copy of the function, `_f`. If we didn't, we wou
 1. Automatically generated internal function name for the second copy instead of using `_NAME_OF_ORIGINAL_FUNCTION`, since that name may be taken
 2. Conditional execution of `Infiltrator` since it relies on the user having `Infiltrator` in whatever namespace the macro is used. `Requires.jl` might be useful here
 3. Local variables within `f` aren't accessible because they live within `f`, not the `rrule`. They should be reproducible by manually re-running the calculations in the primal, but that's a fair amount of redundant computation.
-4. A better name!
+4. We can probably just make `f` wrap a call to `_f`, which reduces redundant code
+5. Better handling of dependencies in general; `Infiltrator.jl` and `ChainRulesCore.jl` are both required to be active in the namespace you want to `@infiltrate`.
+6. Better `Revise.jl` compatability. If you remove the macro, the `rrule` still remains, so you need to restart the REPL. Ideally we'd like to avoid this.
+7. A better name!
+8. Publish to the General registry
