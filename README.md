@@ -73,12 +73,18 @@ To remove the `Infiltrator.jl` instances, we just remove the `@infiltrate_rrule`
 The macro works by generating an alternative copy of the function which is used for dispatching `rrule_via_ad` and a custom `rrule` that wraps calls to the pullback. The macro generates roughly the equivalent code below:
 
 ```julia
-f(x,y) = x^2+y^2
+# Example
+@infiltrate_rrule f(x,y) = x^2 + y^2
 
-_f(x,y) = x^2+y^2
+# Roughly equivalent to all of this
+f(x,y) = _f(x,)
 
-function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(f), x, y)
-    Ω, pb = rrule_via_ad(cfg, _f, x, y)
+_f(x,y) = __f(x,y)
+
+__f(x,y) = x^2+y^2
+
+function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(_f), x, y)
+    Ω, pb = rrule_via_ad(cfg, __f, x, y)
     function _inner_pb(Δ)
         @infiltrate
         pb(Δ)
@@ -87,15 +93,17 @@ function rrule(cfg::RuleConfig{>:HasReverseMode}, ::typeof(f), x, y)
 end
 ```
 
-Note that we do need the second copy of the function, `_f`. If we didn't, we would call `rrule_via_ad(cfg, f, x, y)`, which actually just calls the same `rrule`, leading to a stack overflow. 
+Using three layers, we are able to write the infiltrating `rrule` for `_f` without providing an `rrule` for `f`. This means that when we remove the macro, `f(x,y)` is defined as usual with an automatically derived `rrule`. If we only used two layers and wrote a custom `rrule` for `f` instead, that `rrule` would survive past the removal of the macro and require a restart of the Julia instance to remove\*.
+
+\* There may be a workaround for this, I haven't looked into it too much yet.  
 
 ## Remaining Work
 
 1. Automatically generated internal function name for the second copy instead of using `_NAME_OF_ORIGINAL_FUNCTION`, since that name may be taken
 2. Conditional execution of `Infiltrator` since it relies on the user having `Infiltrator` in whatever namespace the macro is used. `Requires.jl` might be useful here
 3. Local variables within `f` aren't accessible because they live within `f`, not the `rrule`. They should be reproducible by manually re-running the calculations in the primal, but that's a fair amount of redundant computation.
-4. We can probably just make `f` wrap a call to `_f`, which reduces redundant code
+4. ~~We can probably just make `f` wrap a call to `_f`, which reduces redundant code~~ Done, see pt. 6 below
 5. Better handling of dependencies in general; `Infiltrator.jl` and `ChainRulesCore.jl` are both required to be active in the namespace you want to `@infiltrate`.
-6. Better `Revise.jl` compatability. If you remove the macro, the `rrule` still remains, so you need to restart the REPL. Ideally we'd like to avoid this.
+6. ~~Better `Revise.jl` compatability. If you remove the macro, the `rrule` still remains, so you need to restart the REPL. Ideally we'd like to avoid this.~~ Done by hacking in another layer of wrappers, still not the best solution
 7. A better name!
 8. Publish to the General registry
