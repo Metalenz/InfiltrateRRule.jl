@@ -8,31 +8,54 @@ end
 
 function infiltrate_rule(m, expr)
     def = splitdef(first(expr))     # Get the function as a dictionary of expressions
-    name = def[:name]               # Name of the function
+    udef = deepcopy(def)
+    udef[:name] = Symbol("_$(udef[:name])")
 
-    # We want a second copy of the function to call with `rrule_via_ad`. For this, we just
-    #   change the name to include an underscore prefix
-    diffname = Symbol("_$name")     # The differentiable version of the function
-    def_new = deepcopy(def)
-    def_new[:name] = diffname
+    base_def = make_wrapper(def)
+    wrapper_def = make_wrapper(udef)
+    actual_def = make_f_def(def)
+    rrule_def = add_infiltrate(def) # Get the rrule
 
-    origdef = combinedef(def)
-    diffabledef = combinedef(def_new)
-    rrule_def = combinedef(add_infiltrate(def)) # Get the rrule
+    origdef = combinedef(base_def)
+    wrapdef = combinedef(wrapper_def)
+    actual_def = combinedef(actual_def)
+    diffabledef = combinedef(rrule_def)
 
     @eval m $origdef
+    @eval m $wrapdef
+    @eval m $actual_def
     @eval m $diffabledef
-    @eval m $rrule_def
 end
 
+# Makes a function call another function with the same name but a _ prefix and the same
+#   arguments.
+function make_wrapper(def)
+    new_def = deepcopy(def)
+    name = new_def[:name]
 
+    wrapped_name = Symbol("_$name")
+    new_def[:body] = :(return $(wrapped_name)($(def[:args]...)))
+
+    return new_def
+end
+
+# Given a function definition from `splitdef`, change the name to include a __ prefix
+function make_f_def(def)
+    new_def = deepcopy(def)
+    new_def[:name] = Symbol("__$(def[:name])")
+    return new_def
+end
+
+# Add an `rrule` for the single _ prefix version of the function. This means when we
+#   remove the macro, the intended function gets defined instead of wrapping inner calls
+#   that inject an @infiltrate macro
 function add_infiltrate(split_def)
     split_def = deepcopy(split_def)
 
-    fname = split_def[:name]        # Name of the original function
-    funtype = :(::typeof($fname))   # Need typeof for dispatch
+    fname = Symbol("_$(split_def[:name])")  # Name of the original function
+    ufname = Symbol("_$fname")              # Name of the AD version of our function
+    funtype = :(::typeof($fname))           # Need typeof for dispatch
 
-    ufname = Symbol("_$fname")      # Name of the AD version of our function
 
     rrule_via_ad_args = deepcopy(split_def[:args])
 

@@ -1,7 +1,7 @@
 name = "InfiltrateRRule"
 uuid = "84379dbf-fa74-43c0-80c0-5293ede96cb3"
 authors = ["Sam Buercklin <sam@metalenz.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
