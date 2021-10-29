@@ -1,24 +1,24 @@
 # InfiltrateRRule.jl
 
-`InfiltrateRRule.jl` is a utility for inspect automatically derived `rrule`s with `ChainRulesCore`. 
+`InfiltrateRRule.jl` is a utility for inspecting gradients/state in automatically derived `rrule`s with `ChainRulesCore`. 
 
-Consider the following function we would like to differentiate through with `Zygote.jl`:
+Consider the following function we would like to differentiate with `Zygote.jl`:
 
 ```julia
 f(a,b) = a^2 + b^2
 ```
 
-`Zygote.jl` can easily differentiate this since it comprises only functions for which we have exisitng `rrule`s. Crucially, we do not need to write a custom `rrule`. In spite of this, it could be useful to inspect the differential passed *into* `f`, or perhaps verify that the returned value from the pullback matches what we expect among other calculations around the pullback. 
+`f` is easily differentiate this since it comprises only functions for which we have exisitng `rrule`s. Crucially, we do not need to write a custom `rrule`. In spite of this, it could be useful to inspect the differential passed *into* `f`, or perhaps verify that the returned value from the pullback matches what we expect among other calculations around the pullback. 
 
 `Infiltrator.jl` is one tool for doing this type of inspection: by inserting an `@infiltrator` line into our code. When the `@infiltrator` line is reached, execution halts and an interactive REPL is opened at that line.
 
 If we have a custom `rrule` for `f` written, we can just directly insert `@infiltrator` into the pullback. However, for an `rrule` which is automatically derived, we can't just insert the `@infiltrator` call since it is generated programmatically.  
 
-`InfiltrateRRule.jl` exports the macro `@infiltrate_rrule` which enables easy inspection of automatically generated pullbacks. After annotating a function with the macro, calls to the pullback will open an `Infiltrator.jl` instance where the pullback input `Δ` are available along with inputs to the primal calculation.
+`InfiltrateRRule.jl` exports the macro `@infiltrate_rrule` which enables easy inspection of automatically generated pullbacks. After annotating a function with the macro, calls to the pullback will open an `Infiltrator.jl` instance where the pullback input `Δ` and pullback function `pb` are available, along with inputs to the primal calculation.
 
 ## Example
 
-The code below is a MWE for using `InfiltrateRRule.jl`. When executing the code below, an interactive `Infiltrator.jl` session will open when the pullback is called. 
+The code below is a MWE for using `InfiltrateRRule.jl`. When executing the code below, an interactive `Infiltrator.jl` session will open when the pullback for `f` is called. 
 
 ```julia
 using Infiltrator
@@ -49,7 +49,7 @@ infil> x # result of the inner f call
 infil> y
 4.0
 ```
-To move onto the second call to `f`, we simply `@continue` and repeat the procedure
+We can continue onto the second call to `f` if we simply `@continue` using `Infiltrator.jl` and repeat the procedure
 
 ```julia
 infil> @continue
@@ -95,14 +95,14 @@ end
 
 Using three layers, we are able to write the infiltrating `rrule` for `_f` without providing an `rrule` for `f`. This means that when we remove the macro, `f(x,y)` is defined as usual with an automatically derived `rrule`. If we only used two layers and wrote a custom `rrule` for `f` instead, that `rrule` would survive past the removal of the macro and require a restart of the Julia instance to remove\*.
 
-\* There may be a workaround for this, I haven't looked into it too much yet.  
+\* A better workaround for this would be great  
 
 ## Remaining Work
 
 1. Automatically generated internal function name for the second copy instead of using `_NAME_OF_ORIGINAL_FUNCTION`, since that name may be taken
-2. Conditional execution of `Infiltrator` since it relies on the user having `Infiltrator` in whatever namespace the macro is used. `Requires.jl` might be useful here
-3. Local variables within `f` aren't accessible because they live within `f`, not the `rrule`. They should be reproducible by manually re-running the calculations in the primal, but that's a fair amount of redundant computation.
+2. Conditional execution of `Infiltrator` since it relies on the user having `Infiltrator` in whatever namespace the macro is used. `Requires.jl` might be useful here for conditionally exporting the macro
+3. Local variables within `f` aren't accessible because they live within `f`, not the `rrule`. They should be reproducible by manually re-running the calculations in the primal, but that's a fair amount of redundant computation and not safe in general if there are in-place operations.
 4. ~~We can probably just make `f` wrap a call to `_f`, which reduces redundant code~~ Done, see pt. 6 below
-5. Better handling of dependencies in general; `Infiltrator.jl` and `ChainRulesCore.jl` are both required to be active in the namespace you want to `@infiltrate`.
+5. Better handling of dependencies in general; `Infiltrator.jl` and `ChainRulesCore.jl` are both required to be active in the namespace where you want to `@infiltrate`.
 6. ~~Better `Revise.jl` compatability. If you remove the macro, the `rrule` still remains, so you need to restart the REPL. Ideally we'd like to avoid this.~~ Done by hacking in another layer of wrappers, still not the best solution
 7. A better name!
