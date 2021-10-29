@@ -8,7 +8,7 @@ Consider the following function we would like to differentiate through with `Zyg
 f(a,b) = a^2 + b^2
 ```
 
-`Zygote.jl` can easily differentiate through this function which comprises only functions for which we have exisitng `rrule`s. Crucially, we do not need to write a custom `rrule`. In spite of this, it could be useful to inspect the differential passed *into* `f`, or perhaps verify that the returned value from the pullback matches what we expect among other calculations around the pullback. 
+`Zygote.jl` can easily differentiate this since it comprises only functions for which we have exisitng `rrule`s. Crucially, we do not need to write a custom `rrule`. In spite of this, it could be useful to inspect the differential passed *into* `f`, or perhaps verify that the returned value from the pullback matches what we expect among other calculations around the pullback. 
 
 `Infiltrator.jl` is one tool for doing this type of inspection: by inserting an `@infiltrator` line into our code. When the `@infiltrator` line is reached, execution halts and an interactive REPL is opened at that line.
 
@@ -66,7 +66,7 @@ infil> y
 4.0
 ```
 
-To remove the `Infiltrator.jl` instances, we just remove the `@infiltrate_rrule` annotation (and probably have to restart the REPL). 
+To remove the `Infiltrator.jl` instances, we just remove the `@infiltrate_rrule` annotation. 
 
 ## How it Works
 
@@ -106,4 +106,3 @@ Using three layers, we are able to write the infiltrating `rrule` for `_f` witho
 5. Better handling of dependencies in general; `Infiltrator.jl` and `ChainRulesCore.jl` are both required to be active in the namespace you want to `@infiltrate`.
 6. ~~Better `Revise.jl` compatability. If you remove the macro, the `rrule` still remains, so you need to restart the REPL. Ideally we'd like to avoid this.~~ Done by hacking in another layer of wrappers, still not the best solution
 7. A better name!
-8. Publish to the General registry
